@@ -13,13 +13,14 @@ namespace Discography.Core.Models
         public string Title { get; set; }
 
         [Required]
-        public int DurationInSeconds { get; set; } // koverzija u string minuti:sekunde
+        public int DurationInSeconds { get; set; }
 
         public DateTime? DateRecorded { get; set; }
 
         public DateTime? DateReleased { get; set; }
 
         public string Lyrics { get; set; }
+
         public Genres Genres { get; set; }
 
         public Guid BandId { get; set; }
@@ -30,7 +31,7 @@ namespace Discography.Core.Models
         public Guid? LyricistId { get; set; }
 
         [ForeignKey("LyricistId")]
-        public Musician Lyricist  { get; set; }
+        public Musician Lyricist { get; set; }
 
         public Guid? ComposerId { get; set; }
 

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Dynamic;
 using System.Reflection;
@@ -70,6 +71,15 @@ namespace Discography.Data.Extensions
 
             // return the list
             return dataShapedObject;
+        }
+
+
+        public static bool IsList(this object o)
+        {
+            if (o == null) return false;
+            return o is IList &&
+                   o.GetType().IsGenericType &&
+                   o.GetType().GetGenericTypeDefinition().IsAssignableFrom(typeof(List<>));
         }
     }
 }

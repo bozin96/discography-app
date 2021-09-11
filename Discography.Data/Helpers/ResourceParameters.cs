@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace Discography.Data.Helpers
 {
-    public class PaginationRequest
+    public class ResourceParameters
     {
         const int maxPageSize = 20;
         public string SearchQuery { get; set; }

@@ -1,10 +1,6 @@
 ﻿using Discography.Core.Models;
-using Discography.Data.Dtos;
+using Discography.Data.Dtos.BandDtos;
 using Discography.Data.Helpers;
-using Discography.Data.Models;
-using System;
-using System.Collections.Generic;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Discography.Data.Interfaces

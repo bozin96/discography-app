@@ -1,18 +1,18 @@
 ﻿using AutoMapper;
+using Discography.API.ActionConstraints;
 using Discography.API.Dtos;
 using Discography.API.Enums;
 using Discography.Core.Models;
-using Discography.Data.Dtos;
+using Discography.Data.Dtos.BandDtos;
 using Discography.Data.Extensions;
 using Discography.Data.Interfaces;
-using Discography.Data.Models;
-using Marvin.Cache.Headers;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Microsoft.Net.Http.Headers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -70,12 +70,11 @@ namespace Discography.API.Controllers
 
             Response.Headers.Add("X-Pagination", JsonSerializer.Serialize(paginationMetadata));
 
+            var links = CreateLinksForBands(resourceParameters, bandsFromRepo.HasNext, bandsFromRepo.HasPrevious);
 
-            var links = CreateLinksForAuthors(resourceParameters, bandsFromRepo.HasNext, bandsFromRepo.HasPrevious);
+            var shapedBands = _mapper.Map<IEnumerable<BandDto>>(bandsFromRepo).ShapeData(resourceParameters.Fields);
 
-            var shapedAuthors = _mapper.Map<IEnumerable<BandDto>>(bandsFromRepo).ShapeData(resourceParameters.Fields);
-
-            var shapedBandsWithLinks = shapedAuthors.Select(band =>
+            var shapedBandsWithLinks = shapedBands.Select(band =>
             {
                 var bandAsDictionary = band as IDictionary<string, object>;
                 var bandLinks = CreateLinksForBand((Guid)bandAsDictionary["Id"], null);
@@ -90,15 +89,30 @@ namespace Discography.API.Controllers
                 links
             };
 
-            return Ok(_mapper.Map<List<BandDto>>(bandsFromRepo));
+            return Ok(linkedCollectionResource);
         }
 
+        [Produces("application/json",
+            "application/vnd.marvin.hateoas+json",
+            "application/vnd.marvin.band.full+json",
+            "application/vnd.marvin.band.full.hateoas+json",
+            "application/vnd.marvin.band.friendly+json",
+            "application/vnd.marvin.band.friendly.hateoas+json")]
         [HttpGet("{bandId}", Name = "GetBand")]
-        // [ResponseCache(Duration = 120)]
-        [HttpCacheExpiration(CacheLocation = CacheLocation.Public, MaxAge = 1000)]
-        [HttpCacheValidation(MustRevalidate = false)]
-        public async Task<ActionResult<BandDto>> GetBandAsync(Guid bandId)
+        public async Task<ActionResult<BandDto>> GetBandAsync(Guid bandId, string fields,
+             [FromHeader(Name = "Accept")] string mediaType)
         {
+            if (!MediaTypeHeaderValue.TryParse(mediaType,
+                out MediaTypeHeaderValue parsedMediaType))
+            {
+                return BadRequest();
+            }
+
+            if (!_propertyCheckerService.TypeHasProperties<BandDto>(fields))
+            {
+                return BadRequest();
+            }
+
             var bandFromRepoo = await _bandRepository.GetByIdAsync(bandId);
 
             if (bandFromRepoo == null)
@@ -106,23 +120,53 @@ namespace Discography.API.Controllers
                 return NotFound();
             }
 
-            return Ok(_mapper.Map<BandDto>(bandFromRepoo));
+            var includeLinks = parsedMediaType.SubTypeWithoutSuffix
+               .EndsWith("hateoas", StringComparison.InvariantCultureIgnoreCase);
+
+            var primaryMediaType = includeLinks ?
+                parsedMediaType.SubTypeWithoutSuffix
+                .Substring(0, parsedMediaType.SubTypeWithoutSuffix.Length - 8)
+                : parsedMediaType.SubTypeWithoutSuffix;
+
+            // friendly band
+            var friendlyResourceToReturn = _mapper.Map<BandDto>(bandFromRepoo)
+                .ShapeData(fields) as IDictionary<string, object>;
+
+            if (includeLinks)
+            {
+                var links = CreateLinksForBand(bandId, fields);
+                friendlyResourceToReturn.Add("links", links);
+            }
+
+            return Ok(friendlyResourceToReturn);
         }
 
         [HttpPost(Name = "CreateBand")]
+        [RequestHeaderMatchesMediaType("Content-Type",
+            "application/json",
+            "application/vnd.marvin.bandforcreation+json")]
+        [Consumes("application/json",
+            "application/vnd.marvin.bandforcreation+json")]
         public async Task<ActionResult<BandDto>> CreateBandAsync(BandForCreationDto band)
         {
             var bandEntity = _mapper.Map<Band>(band);
             await _bandRepository.AddAsync(bandEntity);
 
             var bandToReturn = _mapper.Map<BandDto>(bandEntity);
+
+            var links = CreateLinksForBand(bandToReturn.Id, null);
+
+            var linkedResourceToReturn = bandToReturn.ShapeData(null)
+                as IDictionary<string, object>;
+            linkedResourceToReturn.Add("links", links);
+
             return CreatedAtRoute("GetBand",
-                new { bandId = bandToReturn.Id },
-                bandToReturn);
+                new { bandId = linkedResourceToReturn["Id"] },
+                linkedResourceToReturn);
         }
 
-        [HttpPut("{bandId}")]
-        public async Task<IActionResult> UpdateCourseForAuthor(Guid bandId, BandForUpdateDto band)
+        [HttpPut("{bandId}", Name = "UpdateBand")]
+        public async Task<IActionResult> UpdateBandAsync(Guid bandId, BandForUpdateDto band)
         {
             var bandFromRepo = await _bandRepository.GetByIdAsync(bandId);
 
@@ -151,7 +195,7 @@ namespace Discography.API.Controllers
             return NoContent();
         }
 
-        [HttpPatch("{bandId}")]
+        [HttpPatch("{bandId}", Name = "PartiallyUpdateBand")]
         public async Task<ActionResult> PartiallyUpdateBandAsync(Guid bandId, JsonPatchDocument<BandForUpdateDto> patchDocument)
         {
             var bandFromRepo = await _bandRepository.GetByIdAsync(bandId);
@@ -194,8 +238,8 @@ namespace Discography.API.Controllers
             return NoContent();
         }
 
-        [HttpDelete("{bandId}")]
-        public async Task<ActionResult> DeleteCourseForAuthor(Guid bandId)
+        [HttpDelete("{bandId}", Name = "DeleteBand")]
+        public async Task<ActionResult> DeleteBandAsync(Guid bandId)
         {
             if (!await _bandRepository.ExistsAsync(bandId))
             {
@@ -207,6 +251,20 @@ namespace Discography.API.Controllers
             return NoContent();
         }
 
+        [HttpOptions]
+        public IActionResult GetBandOptions()
+        {
+            Response.Headers.Add("Allow", "GET,OPTIONS,POST,PUT,PATCH");
+            return Ok();
+        }
+
+        /// Validacija kod kreiranja i upserting za name i sta vec treba
+        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        /// Proveri create link sto ide id u query da li tako treba???
+        /// Proveri sto ne radi xml sad !!!!!!!!!!!!!!!!!!!
+
+        #region Helpers
+
         public override ActionResult ValidationProblem(
         [ActionResultObjectValue] ModelStateDictionary modelStateDictionary)
         {
@@ -214,9 +272,6 @@ namespace Discography.API.Controllers
                 .GetRequiredService<IOptions<ApiBehaviorOptions>>();
             return (ActionResult)options.Value.InvalidModelStateResponseFactory(ControllerContext);
         }
-
-        /// Validacija kod kreiranja i upserting za name i sta vec treba
-        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         private string CreateBandsResourceUri(BandResourceParameters bandResourceParameters, ResourceUriType type)
         {
@@ -263,7 +318,6 @@ namespace Discography.API.Controllers
 
         }
 
-
         private IEnumerable<LinkDto> CreateLinksForBand(Guid bandId, string fields)
         {
             var links = new List<LinkDto>();
@@ -293,24 +347,34 @@ namespace Discography.API.Controllers
                 "create_band",
                 "POST"));
 
+            links.Add(
+                new LinkDto(Url.Link("UpdateBand", new { bandId }),
+                "update_band",
+                "PUT"));
+
+            links.Add(
+                new LinkDto(Url.Link("PartiallyUpdateBand", new { bandId }),
+                "partially_update_band",
+                "PATCH"));
+
             return links;
         }
 
-        private IEnumerable<LinkDto> CreateLinksForAuthors(BandResourceParameters authorsResourceParameters, bool hasNext, bool hasPrevious)
+        private IEnumerable<LinkDto> CreateLinksForBands(BandResourceParameters bandsResourceParameters, bool hasNext, bool hasPrevious)
         {
             var links = new List<LinkDto>();
 
             // self 
             links.Add(
                new LinkDto(CreateBandsResourceUri(
-                   authorsResourceParameters, ResourceUriType.Current)
+                   bandsResourceParameters, ResourceUriType.Current)
                , "self", "GET"));
 
             if (hasNext)
             {
                 links.Add(
                   new LinkDto(CreateBandsResourceUri(
-                      authorsResourceParameters, ResourceUriType.NextPage),
+                      bandsResourceParameters, ResourceUriType.NextPage),
                   "nextPage", "GET"));
             }
 
@@ -318,12 +382,13 @@ namespace Discography.API.Controllers
             {
                 links.Add(
                     new LinkDto(CreateBandsResourceUri(
-                        authorsResourceParameters, ResourceUriType.PreviousPage),
+                        bandsResourceParameters, ResourceUriType.PreviousPage),
                     "previousPage", "GET"));
             }
 
             return links;
         }
 
+        #endregion
     }
 }

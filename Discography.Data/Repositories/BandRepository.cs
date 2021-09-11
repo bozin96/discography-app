@@ -1,16 +1,12 @@
 ﻿using Discography.Core.Enums;
 using Discography.Core.Models;
 using Discography.Data.Context;
-using Discography.Data.Dtos;
+using Discography.Data.Dtos.BandDtos;
 using Discography.Data.Extensions;
 using Discography.Data.Helpers;
 using Discography.Data.Interfaces;
-using Discography.Data.Models;
-using Microsoft.EntityFrameworkCore;
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Discography.Data.Repositories
@@ -36,7 +32,7 @@ namespace Discography.Data.Repositories
             // filter by year of formation
             if (resourceParameters.YearOfFormation != 0)
             {
-                collection = collection.Where(b => b.YearOfFormation == resourceParameters.YearOfFormation);
+                collection = collection.Where(e => e.YearOfFormation == resourceParameters.YearOfFormation);
             }
 
             if (!string.IsNullOrEmpty(resourceParameters.Genre))
@@ -45,7 +41,7 @@ namespace Discography.Data.Repositories
                 Genres genre = EnumExtensions.GetValueFromName<Genres>(stringGenre);
                 if (genre != Genres.Empty)
                 {
-                    collection = collection.Where(b => b.Genres.HasFlag(genre));
+                    collection = collection.Where(e => e.Genres.HasFlag(genre));
                 }
             }
 
@@ -53,8 +49,8 @@ namespace Discography.Data.Repositories
             {
 
                 var searchQuery = resourceParameters.SearchQuery.Trim();
-                collection = collection.Where(b => b.Name.Contains(searchQuery) ||
-                                                   b.AlsoKnownAs.Contains(searchQuery));
+                collection = collection.Where(e => e.Name.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
+                                                   e.AlsoKnownAs.Contains(searchQuery, StringComparison.OrdinalIgnoreCase));
             }
 
             if (!string.IsNullOrWhiteSpace(resourceParameters.OrderBy))

@@ -3,9 +3,9 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Discography.Data.Dtos
+namespace Discography.Data.Dtos.BandDtos
 {
-    public class BandResourceParameters : PaginationRequest
+    public class BandResourceParameters : ResourceParameters
     {
         public int YearOfFormation { get; set; } = 0;
 

@@ -20,6 +20,8 @@ namespace Discography.Core.Models
         [ForeignKey("BandId")]
         public Band Band { get; set; }
 
+        public List<Song> Songs { get; set; }
+
         public Album()
         {
 

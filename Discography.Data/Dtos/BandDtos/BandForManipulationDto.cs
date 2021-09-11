@@ -1,13 +1,14 @@
-﻿using System;
+﻿using Discography.Core.Models;
+using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using System.ComponentModel.DataAnnotations;
+using System.Text;
 
 namespace Discography.Data.Dtos.BandDtos
 {
-    public class BandDto
+    public abstract class BandForManipulationDto
     {
-        public Guid Id { get; set; }
+        [Required(ErrorMessage = "You should fill out a name.")]
         public string Name { get; set; }
 
         public int YearOfFormation { get; set; }
@@ -16,7 +17,7 @@ namespace Discography.Data.Dtos.BandDtos
 
         public string Description { get; set; }
 
-        public List<string> ActivePeriods { get; set; }
+        public List<ActivePeriod> ActivePeriods { get; set; }
 
         public List<string> Genres { get; set; }
     }

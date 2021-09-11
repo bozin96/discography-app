@@ -1,11 +1,16 @@
+using Discography.Core.Models;
+using Discography.Core.Validation;
 using Discography.Data.Context;
+using Discography.Data.Dtos.SongDtos;
 using Discography.Data.Interfaces;
 using Discography.Data.Repositories;
 using Discography.Data.Services;
+using Discography.Data.ValidationAttributes;
+using FluentValidation;
+using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.EntityFrameworkCore;
@@ -83,6 +88,8 @@ namespace Discography.API
                 };
             });
 
+            services.AddFluentValidation(mvcConfiguration => mvcConfiguration.RegisterValidatorsFromAssemblyContaining<SongValidator>());
+
             services.Configure<MvcOptions>(config =>
             {
                 var newtonsoftJsonOutputFormatter = config.OutputFormatters
@@ -97,11 +104,22 @@ namespace Discography.API
             // register BandRepository
             services.AddTransient<IBandRepository, BandRepository>();
 
+            // register MusicianRepository
+            services.AddTransient<IMusicianRepository, MusicianRepository>();
+
+            // register AlbumRepository
+            services.AddTransient<IAlbumRepository, AlbumRepository>();
+
+            // register SongRepository
+            services.AddTransient<ISongRepository, SongRepository>();
+
             // register PropertyMappingService
             services.AddTransient<IPropertyMappingService, PropertyMappingService>();
 
             // register PropertyCheckerService
             services.AddTransient<IPropertyCheckerService, PropertyCheckerService>();
+
+            services.AddTransient<IValidator<SongForCreationDto>, SongForCreationValidator>();
 
             services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
         }
