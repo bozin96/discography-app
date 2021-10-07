@@ -5,7 +5,9 @@ using Discography.Data.Dtos.BandDtos;
 using Discography.Data.Extensions;
 using Discography.Data.Helpers;
 using Discography.Data.Interfaces;
+using Microsoft.EntityFrameworkCore;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -65,6 +67,18 @@ namespace Discography.Data.Repositories
             return await PagedList<Band>.CreateAsync(collection,
                 resourceParameters.PageNumber,
                 resourceParameters.PageSize);
+        }
+
+        public async Task<IEnumerable<Band>> GetBandsAsync(IEnumerable<Guid> bandIds)
+        {
+            if (bandIds == null)
+            {
+                throw new ArgumentNullException(nameof(bandIds));
+            }
+
+            return await _entities.Where(a => bandIds.Contains(a.Id))
+                .OrderBy(a => a.Name)
+                .ToListAsync();
         }
     }
 }

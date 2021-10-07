@@ -258,11 +258,6 @@ namespace Discography.API.Controllers
             return Ok();
         }
 
-        /// Validacija kod kreiranja i upserting za name i sta vec treba
-        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        /// Proveri create link sto ide id u query da li tako treba???
-        /// Proveri sto ne radi xml sad !!!!!!!!!!!!!!!!!!!
-
         #region Helpers
 
         public override ActionResult ValidationProblem(
